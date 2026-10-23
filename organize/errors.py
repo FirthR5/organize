@@ -31,6 +31,10 @@ class ConfigError(ValueError):
         return self.e.json()
 
 
+class IncludeError(ValueError):
+    """Raised when an `include` directive cannot be resolved or is cyclic."""
+
+
 class ConfigNotFound(FileNotFoundError):
     def __init__(
         self,

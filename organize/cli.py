@@ -60,6 +60,7 @@ from rich.table import Table
 from yaml.scanner import ScannerError
 
 from organize import Config, ConfigError
+from organize.errors import IncludeError
 from organize.find_config import (
     DOCS_RTD,
     ConfigNotFound,
@@ -291,7 +292,7 @@ def cli(argv: Union[list[str], str, None] = None) -> None:
             list_()
         elif args.docs:
             docs()
-    except (ConfigError, ConfigNotFound) as e:
+    except (ConfigError, ConfigNotFound, IncludeError) as e:
         console.print(f"[red]Error: Config problem[/]\n{escape(e)}")
         sys.exit(1)
     except ValidationError as e:

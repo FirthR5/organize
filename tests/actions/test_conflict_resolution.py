@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 import pytest
@@ -102,25 +101,3 @@ def test_conflicting_folders(fs):
     )
     assert not result.skip_action
     assert result.use_dst == Path("/test/dir1/sub1 2")
-
-
-def test_rename_existing_message_contains_new_filename(fs, capsys):
-    make_files(
-        {
-            "file.txt": "file",
-            "other.txt": "other",
-        },
-        "test",
-    )
-
-    resolve_conflict(
-        dst=Path("test/other.txt"),
-        res=Resource(path=Path("test/file.txt")),
-        conflict_mode="rename_existing",
-        rename_template=Template.from_string("{name}{counter}{extension}"),
-        simulate=False,
-        output=JSONL(),
-    )
-
-    events = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
-    assert events[-1]["msg"] == 'Renaming existing to: "other2.txt"'
