@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Added support for including a base config via the new top-level `include` key. The
+  included file is inlined into the current config in a single YAML document, so YAML
+  anchors (e.g. shared variables) defined in the included file can be referenced from
+  the including config without copy-pasting them.
 - Fixed #438 (`filecontent` filter fails for PDFs when `pdftotext` isn't installed, instead of falling back to `pdfminer`)
 
 ## v3.3.0 (2024-11-25)

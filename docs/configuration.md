@@ -76,6 +76,50 @@ Special tags:
 - Rules tagged with the special tag `never` will never run
   (except if ' `--tags=never` is specified)
 
+## Sharing a base config
+
+If you keep several config files you can put shared variables (YAML anchors) into a
+base config file and include it from your other configs with the top-level `include`
+key:
+
+```yml
+# base.yaml
+ext_images: &ext_images
+  - jpg
+  - png
+  - gif
+
+folder_images: &Images_Folders
+  - ~/Downloads
+  - ~/Pictures/
+```
+
+```yml
+# config.yaml
+include: base.yaml
+
+rules:
+  - name: Move images
+    locations: *Images_Folders
+    filters:
+      - extension: *ext_images
+    actions:
+      - move: ~/Pictures/
+```
+
+The included file is inlined into the current config as a single YAML document, so
+anchors defined in the base file can be used directly in the including file.
+
+Notes:
+
+- `include` accepts a single file name/path or a list of them.
+- Included files may themselves use `include` (nested includes are supported).
+- A reference is resolved in this order:
+  1. as given (with `~` and environment variables expanded),
+  2. relative to the directory of the including config file,
+  3. the default config search locations (see `organize list`).
+- Cyclic includes are detected and reported as a config error.
+
 ## Environment variables
 
 - `ORGANIZE_CONFIG` - The path to the default config file.

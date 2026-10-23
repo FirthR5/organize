@@ -1,6 +1,7 @@
 import pytest
 
 from organize.config import Config, ConfigError
+from organize.errors import IncludeError
 
 
 def test_basic():
@@ -266,3 +267,149 @@ def test_flatten_filters_and_actions():
 #             system_files=False,
 #         ),
 #     ]
+
+
+BASE_CONFIG = """\
+ext_images: &ext_images
+  - jpg
+  - png
+
+folder_images: &Images_Folders
+  - '~/Downloads'
+  - '~/Pictures/'
+"""
+
+CHILD_CONFIG = """\
+include: base.yaml
+
+rules:
+  - name: 'Images rule'
+    locations: *Images_Folders
+    filters:
+      - extension: *ext_images
+    actions:
+      - echo: 'img {path.name}'
+"""
+
+
+def test_include_anchors(tmp_path):
+    (tmp_path / "base.yaml").write_text(BASE_CONFIG)
+    (tmp_path / "child.yaml").write_text(CHILD_CONFIG)
+
+    conf = Config.from_path(tmp_path / "child.yaml")
+
+    assert [rule.name for rule in conf.rules] == ["Images rule"]
+    rule = conf.rules[0]
+    locations = [path for loc in rule.locations for path in loc.path]
+    assert locations == ["~/Downloads", "~/Pictures/"]
+    assert rule.filters[0].extensions == {"jpg", "png"}
+
+
+def test_include_list(tmp_path):
+    (tmp_path / "base.yaml").write_text(BASE_CONFIG)
+    (tmp_path / "extra.yaml").write_text(
+        """\
+ext_docs: &ext_docs
+  - pdf
+  - epub
+"""
+    )
+    (tmp_path / "child.yaml").write_text(
+        """\
+include:
+  - base.yaml
+  - extra.yaml
+
+rules:
+  - name: 'Child rule'
+    locations: '~/Downloads'
+    filters:
+      - extension: *ext_docs
+    actions:
+      - echo: 'child'
+"""
+    )
+
+    conf = Config.from_path(tmp_path / "child.yaml")
+
+    assert len(conf.rules) == 1
+    assert conf.rules[0].filters[0].extensions == {"pdf", "epub"}
+
+
+def test_include_nested(tmp_path):
+    (tmp_path / "base.yaml").write_text(BASE_CONFIG)
+    (tmp_path / "middle.yaml").write_text(
+        """\
+include: base.yaml
+
+ext_docs: &ext_docs
+  - pdf
+"""
+    )
+    (tmp_path / "child.yaml").write_text(
+        """\
+include: middle.yaml
+
+rules:
+  - name: 'Child rule'
+    locations: *Images_Folders
+    filters:
+      - extension: *ext_docs
+      - extension: *ext_images
+    actions:
+      - echo: 'child'
+"""
+    )
+
+    conf = Config.from_path(tmp_path / "child.yaml")
+
+    rule = conf.rules[0]
+    assert rule.filters[0].extensions == {"pdf"}
+    assert rule.filters[1].extensions == {"jpg", "png"}
+    locations = [path for loc in rule.locations for path in loc.path]
+    assert locations == ["~/Downloads", "~/Pictures/"]
+
+
+def test_include_cycle(tmp_path):
+    (tmp_path / "a.yaml").write_text(
+        """\
+include: b.yaml
+
+rules:
+  - name: 'A'
+    locations: '~/'
+    actions:
+      - echo: a
+"""
+    )
+    (tmp_path / "b.yaml").write_text(
+        """\
+include: a.yaml
+
+rules:
+  - name: 'B'
+    locations: '~/'
+    actions:
+      - echo: b
+"""
+    )
+
+    with pytest.raises(IncludeError):
+        Config.from_path(tmp_path / "a.yaml")
+
+
+def test_include_missing(tmp_path):
+    (tmp_path / "child.yaml").write_text(
+        """\
+include: does_not_exist.yaml
+
+rules:
+  - name: 'Child'
+    locations: '~/'
+    actions:
+      - echo: child
+"""
+    )
+
+    with pytest.raises(IncludeError):
+        Config.from_path(tmp_path / "child.yaml")
